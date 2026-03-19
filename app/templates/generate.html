@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Generate Report - MileTrack{% endblock %}
+{% block content %}
+<h2>Generate Mileage Report</h2>
+
+{% if errors is defined and errors %}
+<article style="border-left: 4px solid var(--pico-del-color); padding-left: 1rem;">
+    <ul>
+    {% for err in errors %}
+        <li style="color: var(--pico-del-color);">{{ err }}</li>
+    {% endfor %}
+    </ul>
+</article>
+{% endif %}
+
+<form method="post" action="/generate/preview">
+    <div class="grid">
+        <label>
+            Consultant Name
+            <input type="text" name="consultant_name" value="{{ form.get('consultant_name', user.name) }}" required>
+        </label>
+        <label>
+            Month
+            <select name="month">
+                {% for m in range(1, 13) %}
+                <option value="{{ m }}" {% if (form.get('month') or current_month) == m %}selected{% endif %}>
+                    {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Year
+            <select name="year">
+                {% for y in range(2024, 2028) %}
+                <option value="{{ y }}" {% if (form.get('year') or current_year) == y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </div>
+
+    <div class="grid">
+        <label>
+            Total Kilometers
+            <input type="number" name="target_km" id="target_km" step="0.1" min="1"
+                   value="{{ form.get('target_km', '') }}" required
+                   oninput="suggestDays()">
+            <small id="days_hint"></small>
+        </label>
+        <label>
+            Number of Days
+            <input type="number" name="num_days" id="num_days" min="1" max="31"
+                   value="{{ form.get('num_days', '') }}" required
+                   oninput="checkMax()">
+            <small id="max_hint"></small>
+        </label>
+    </div>
+
+    <label>
+        Departure Address
+        <input type="text" name="departure_address"
+               value="{{ form.get('departure_address', user.default_address) }}" required>
+    </label>
+
+    <button type="submit">Preview Trips</button>
+</form>
+
+{% if preview %}
+<hr>
+<h3>Trip Preview</h3>
+{% if is_free_tier %}
+<article style="border-left: 4px solid var(--pico-color-amber-500); padding-left: 1rem;">
+    <p>Free tier: showing up to {{ "%.0f"|format(300) }} km. <a href="/dashboard">Buy credits</a> for full generation.</p>
+</article>
+{% endif %}
+
+<p><strong>Total: {{ "%.2f"|format(preview.total_km) }} km</strong> &mdash; {{ preview.trips|length }} trip days</p>
+
+<table>
+    <thead>
+        <tr><th>Date</th><th>From</th><th>To</th><th>Distance</th></tr>
+    </thead>
+    <tbody>
+        {% for trip in preview.trips %}
+            {% for site in trip.sites %}
+            <tr>
+                <td>{% if loop.first %}{{ trip.date }}{% endif %}</td>
+                <td>{% if loop.first %}{{ trip.start_address }}{% else %}{{ trip.sites[loop.index0 - 1].address }}{% endif %}</td>
+                <td>{{ site.address }}</td>
+                <td>{{ "%.2f"|format(site.distance) }} km</td>
+            </tr>
+            {% endfor %}
+            {% if trip.return_distance > 0 %}
+            <tr>
+                <td></td>
+                <td>{{ trip.sites[-1].address }}</td>
+                <td>{{ trip.start_address }}</td>
+                <td>{{ "%.2f"|format(trip.return_distance) }} km</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+
+<form method="post" action="/generate/pdf">
+    <input type="hidden" name="consultant_name" value="{{ form.consultant_name }}">
+    <input type="hidden" name="month" value="{{ form.month }}">
+    <input type="hidden" name="year" value="{{ form.year }}">
+    <input type="hidden" name="target_km" value="{{ form.target_km }}">
+    <input type="hidden" name="num_days" value="{{ form.num_days }}">
+    <input type="hidden" name="departure_address" value="{{ form.departure_address }}">
+    <input type="hidden" name="trips_json" value="{{ preview.trips_json | e }}">
+    {% if is_free_tier %}
+    <button type="submit">Download PDF (free preview)</button>
+    {% else %}
+    <button type="submit">Download PDF (1 credit)</button>
+    {% endif %}
+</form>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const maxKmPerDay = {{ max_km_per_day }};
+
+function suggestDays() {
+    const km = parseFloat(document.getElementById('target_km').value) || 0;
+    const hint = document.getElementById('days_hint');
+    if (km > 0) {
+        const minDays = Math.ceil(km / maxKmPerDay);
+        const suggestedMax = Math.ceil(km / 200);
+        hint.textContent = `Suggested: ${minDays}-${suggestedMax} days`;
+    } else {
+        hint.textContent = '';
+    }
+}
+
+function checkMax() {
+    const km = parseFloat(document.getElementById('target_km').value) || 0;
+    const days = parseInt(document.getElementById('num_days').value) || 0;
+    const hint = document.getElementById('max_hint');
+    if (days > 0 && km > 0) {
+        const maxKm = days * maxKmPerDay;
+        if (km > maxKm) {
+            hint.textContent = `Max ${maxKm} km for ${days} days`;
+            hint.style.color = 'var(--pico-del-color)';
+        } else {
+            hint.textContent = `Max ${maxKm} km for ${days} days`;
+            hint.style.color = '';
+        }
+    } else {
+        hint.textContent = '';
+    }
+}
+</script>
+{% endblock %}

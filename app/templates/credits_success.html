@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Payment Successful - MileTrack{% endblock %}
+{% block content %}
+<article style="max-width: 500px; margin: 2rem auto; text-align: center;">
+    <h2>Payment Successful</h2>
+    <p>Your credits have been added to your account.</p>
+    <p>Current balance: <strong>{{ user.credits }} credit{{ "s" if user.credits != 1 }}</strong></p>
+    <a href="/generate" role="button">Generate a Report</a>
+</article>
+{% endblock %}

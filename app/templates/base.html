@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MileTrack{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Demo Banner -->
+    <div class="banner">
+        This platform is for demonstration purposes only. <a href="/credits/checkout">Support us as a Patron</a>.
+    </div>
+
+    <nav class="container-fluid">
+        <ul>
+            <li><a href="/dashboard"><strong>MileTrack</strong></a></li>
+        </ul>
+        {% if user %}
+        <ul>
+            <li><a href="/generate">Generate</a></li>
+            <li><a href="/dashboard">Dashboard</a></li>
+            {% if user.is_admin %}
+            <li><a href="/admin/users">Users</a></li>
+            <li><a href="/admin/logs">Logs</a></li>
+            {% endif %}
+            <li><small>{{ user.credits }} credit{{ "s" if user.credits != 1 }}</small></li>
+            <li><a href="/logout" role="button" class="outline secondary">Logout</a></li>
+        </ul>
+        {% endif %}
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>MileTrack &copy; 2026</small>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
