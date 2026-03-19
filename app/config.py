@@ -5,7 +5,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://kmsaas:kmsaas2026@localhost:5432/kmsaas"
+    database_url: str = "postgresql://user:password@localhost:5432/dbname"
 
     # Auth
     jwt_secret: str = "change-me-in-production"
