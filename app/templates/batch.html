@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Batch Generation - MileTrack{% endblock %}
+{% block content %}
+<h2>Batch Mileage Generation</h2>
+
+{% if errors is defined and errors %}
+<article style="border-left: 4px solid var(--pico-del-color); padding-left: 1rem;">
+    <ul>
+    {% for err in errors %}
+        <li style="color: var(--pico-del-color);">{{ err }}</li>
+    {% endfor %}
+    </ul>
+</article>
+{% endif %}
+
+<article>
+    <h3>Instructions</h3>
+    <ol>
+        <li>Download the <a href="/generate/batch/template"><strong>template xlsx</strong></a></li>
+        <li>Fill in the data: one row per consultant</li>
+        <li>Upload the file below</li>
+    </ol>
+    <p>Required columns: <strong>Worker</strong>, <strong>Effective date</strong> (MM/YYYY), <strong>Mileage Amount</strong> (km)</p>
+    <p>Each PDF costs 1 credit. Credits are deducted before generation starts.</p>
+</article>
+
+<form method="post" action="/generate/batch/upload" enctype="multipart/form-data">
+    <label>
+        Departure Address
+        <input type="text" name="departure_address" value="{{ user.default_address }}" required>
+    </label>
+    <label>
+        Upload .xlsx file
+        <input type="file" name="file" accept=".xlsx" required>
+    </label>
+    <button type="submit">Upload and Preview</button>
+</form>
+{% endblock %}

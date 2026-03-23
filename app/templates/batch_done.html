@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Batch Complete - MileTrack{% endblock %}
+{% block content %}
+<h2>Batch Generation Complete</h2>
+
+<article style="border-left: 4px solid var(--pico-ins-color); padding: 1rem;">
+    <h3 style="margin-top: 0;">Summary</h3>
+    <div class="grid">
+        <div>
+            <strong>Total processed:</strong> {{ total_entries }}<br>
+            <strong>Successful:</strong> {{ success_count }}<br>
+            {% if error_count > 0 %}
+            <strong style="color: var(--pico-del-color);">Failed:</strong> {{ error_count }}
+            {% endif %}
+        </div>
+        <div>
+            <strong>Credits used:</strong> {{ success_count }}
+            {% if error_count > 0 %}
+            <br><small style="color: var(--pico-muted-color);">{{ error_count }} credit(s) for failed entries were still consumed</small>
+            {% endif %}
+        </div>
+    </div>
+</article>
+
+{% if success_count > 0 %}
+<a href="/generate/batch/download/{{ job_id }}" role="button" style="margin-bottom: 1rem;">
+    Download ZIP ({{ success_count }} PDFs)
+</a>
+{% endif %}
+
+<h3>Details</h3>
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Worker</th>
+            <th>Period</th>
+            <th>Status</th>
+            <th>Total KM</th>
+            <th>Trips</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in results %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ r.worker }}</td>
+            <td>{{ r.date_str }}</td>
+            <td>
+                {% if r.status == "ok" %}
+                <span style="color: var(--pico-ins-color);">OK</span>
+                {% else %}
+                <span style="color: var(--pico-del-color);">Error: {{ r.error }}</span>
+                {% endif %}
+            </td>
+            <td>{% if r.status == "ok" %}{{ "%.1f"|format(r.total_km) }}{% else %}-{% endif %}</td>
+            <td>{% if r.status == "ok" %}{{ r.num_trips }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="/generate/batch">&larr; New batch</a>
+{% endblock %}

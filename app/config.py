@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     stripe_price_1: str = ""  # 1 credit = 5€
     stripe_price_5: str = ""  # 5 credits = 20€
     stripe_price_10: str = ""  # 10 credits = 40€
+    stripe_price_batch_10: str = ""  # 10 credits (batch) = 20€
 
     # App
     app_name: str = "MileTrack"

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Batch Preview - MileTrack{% endblock %}
+{% block content %}
+<h2>Batch Preview</h2>
+
+{% if errors is defined and errors %}
+<article style="border-left: 4px solid var(--pico-del-color); padding-left: 1rem;">
+    <ul>
+    {% for err in errors %}
+        <li style="color: var(--pico-del-color);">{{ err }}</li>
+    {% endfor %}
+    </ul>
+</article>
+{% endif %}
+
+{% if entries %}
+<p><strong>Departure address:</strong> {{ departure_address }}</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Worker</th>
+            <th>Period</th>
+            <th>Mileage (km)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ entry.worker }}</td>
+            <td>{{ entry.date_str }}</td>
+            <td>{{ "%.1f"|format(entry.mileage_amount) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<article>
+    <div class="grid">
+        <div>
+            <strong>Total entries:</strong> {{ entries|length }}<br>
+            <strong>Credits needed:</strong> {{ credits_needed }}<br>
+            <strong>Your credits:</strong> {{ user.credits }}
+        </div>
+        <div>
+            {% if has_enough %}
+            <form method="post" action="/generate/batch/run">
+                <input type="hidden" name="job_id" value="{{ job_id }}">
+                <button type="submit">Generate All ({{ credits_needed }} credits)</button>
+            </form>
+            {% else %}
+            <p style="color: var(--pico-del-color);"><strong>Not enough credits.</strong> You need {{ credits_needed }} but have {{ user.credits }}.</p>
+            <a href="/dashboard" role="button" class="outline">Buy Credits</a>
+            {% endif %}
+        </div>
+    </div>
+</article>
+{% else %}
+<p>No valid entries found. <a href="/generate/batch">Try again</a>.</p>
+{% endif %}
+
+<a href="/generate/batch">&larr; Back to upload</a>
+{% endblock %}

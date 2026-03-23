@@ -20,6 +20,9 @@
         {% if user %}
         <ul>
             <li><a href="/generate">Generate</a></li>
+            {% if user.batch_enabled %}
+            <li><a href="/generate/batch">Batch</a></li>
+            {% endif %}
             <li><a href="/dashboard">Dashboard</a></li>
             {% if user.is_admin %}
             <li><a href="/admin/users">Users</a></li>

@@ -43,6 +43,7 @@ async def admin_create_user(
     name: str = Form(...),
     default_address: str = Form(""),
     code_sites_table: str = Form("code_sites"),
+    batch_enabled: bool = Form(False),
     db: Session = Depends(get_db),
 ):
     admin = _require_admin(request, db)
@@ -67,6 +68,7 @@ async def admin_create_user(
         code_sites_table=code_sites_table,
         credits=0,
         is_admin=False,
+        batch_enabled=batch_enabled,
     )
     db.add(new_user)
     db.commit()
@@ -119,6 +121,27 @@ async def admin_toggle_role(
     user = db.query(User).filter(User.id == user_id).first()
     if user and user.id != admin.id:
         user.is_admin = (role == "admin")
+        db.commit()
+
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/batch")
+async def admin_toggle_batch(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    admin = _require_admin(request, db)
+    if not admin:
+        return RedirectResponse("/login", status_code=303)
+
+    form = await request.form()
+    batch_enabled = form.get("batch_enabled", "off") == "on"
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.batch_enabled = batch_enabled
         db.commit()
 
     return RedirectResponse("/admin/users", status_code=303)

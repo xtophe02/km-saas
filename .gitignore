@@ -1,13 +1,18 @@
+# Environment & secrets
+.env
+
+# Python
 venv/
 __pycache__/
 *.pyc
-*.db
-.env
-*.log
-*.zip
-*.pdf
-.git/
+*.pyo
 *.egg-info/
+dist/
+build/
+
+# IDE
 .vscode/
 .idea/
+
+# OS
 .DS_Store

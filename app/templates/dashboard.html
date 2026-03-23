@@ -17,6 +17,19 @@
         <p>Without credits, you can preview up to 300 km.</p>
         <details>
             <summary>Buy Credits</summary>
+            {% if user.batch_enabled %}
+            <div class="grid">
+                <form method="post" action="/credits/checkout">
+                    <input type="hidden" name="credits" value="1">
+                    <button type="submit" class="outline">1 credit &mdash; 5&euro;</button>
+                </form>
+                <form method="post" action="/credits/checkout">
+                    <input type="hidden" name="credits" value="10">
+                    <input type="hidden" name="batch" value="1">
+                    <button type="submit" class="outline">10 credits (batch) &mdash; 20&euro;</button>
+                </form>
+            </div>
+            {% else %}
             <div class="grid">
                 <form method="post" action="/credits/checkout">
                     <input type="hidden" name="credits" value="1">
@@ -31,11 +44,16 @@
                     <button type="submit" class="outline">10 credits &mdash; 40&euro;</button>
                 </form>
             </div>
+            {% endif %}
         </details>
     </article>
     <article>
         <h3>Quick Actions</h3>
         <a href="/generate" role="button">Generate New Report</a>
+        {% if user.batch_enabled %}
+        <br><br>
+        <a href="/generate/batch" role="button" class="outline">Batch Generation</a>
+        {% endif %}
     </article>
 </div>
 

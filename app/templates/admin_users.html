@@ -37,12 +37,17 @@
                     {% endfor %}
                 </select>
             </label>
+            <label>
+                <input type="checkbox" name="batch_enabled" value="true">
+                Enable batch generation
+            </label>
         </div>
         <button type="submit">Create User</button>
     </form>
 </details>
 
 <h3>Existing Users</h3>
+<div style="overflow-x: auto;">
 <table>
     <thead>
         <tr>
@@ -52,7 +57,7 @@
             <th>Table</th>
             <th>Created</th>
             <th>Set Credits</th>
-            <th>Role</th>
+            <th>Batch</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -71,16 +76,12 @@
                 </form>
             </td>
             <td>
-                {% if u.id != user.id %}
-                <form method="post" action="/admin/users/{{ u.id }}/role" style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                    <select name="role" style="width: 100px; padding: 0.25rem;" onchange="this.form.submit()">
-                        <option value="user" {% if not u.is_admin %}selected{% endif %}>User</option>
-                        <option value="admin" {% if u.is_admin %}selected{% endif %}>Admin</option>
-                    </select>
+                <form method="post" action="/admin/users/{{ u.id }}/batch" style="display: inline;">
+                    <input type="checkbox" name="batch_enabled" value="on"
+                           {% if u.batch_enabled %}checked{% endif %}
+                           onchange="this.form.submit()"
+                           style="margin: 0;">
                 </form>
-                {% else %}
-                <small>You</small>
-                {% endif %}
             </td>
             <td style="display: flex; gap: 0.25rem; align-items: center;">
                 <form method="post" action="/admin/users/{{ u.id }}/password" style="display: inline-flex; gap: 0.25rem; align-items: center;"
@@ -99,4 +100,5 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% endblock %}

@@ -21,6 +21,10 @@ PACKAGES = {
     10: {"price_id": settings.stripe_price_10, "label": "10 credits", "price": "40.00"},
 }
 
+BATCH_PACKAGE = {
+    10: {"price_id": settings.stripe_price_batch_10, "label": "10 credits (batch)", "price": "20.00"},
+}
+
 
 @router.post("/credits/checkout")
 async def credits_checkout(
@@ -33,8 +37,14 @@ async def credits_checkout(
 
     form = await request.form()
     credits_amount = int(form.get("credits", 1))
+    is_batch = form.get("batch", "0") == "1"
 
-    package = PACKAGES.get(credits_amount)
+    # Determine which package to use
+    if is_batch and user.batch_enabled:
+        package = BATCH_PACKAGE.get(credits_amount)
+    else:
+        package = PACKAGES.get(credits_amount)
+
     if not package or not package["price_id"]:
         return RedirectResponse("/dashboard", status_code=303)
 

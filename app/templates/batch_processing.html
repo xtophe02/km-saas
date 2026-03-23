@@ -1,14 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Generating... - MileTrack{% endblock %}
+{% block title %}Batch Processing... - MileTrack{% endblock %}
 {% block content %}
 <div style="text-align: center; padding: 3rem 1rem;">
     <div class="spinner" role="status" aria-label="Loading"></div>
-    <h3 id="status-text" style="margin-top: 1.5rem;">Starting trip generation...</h3>
+    <h3 id="status-text" style="margin-top: 1.5rem;">Starting batch generation...</h3>
     <p id="status-detail" style="color: var(--pico-muted-color);"></p>
+
+    <div style="max-width: 400px; margin: 1.5rem auto;">
+        <progress id="progress-bar" value="0" max="{{ batch_total }}"></progress>
+        <p id="progress-text" style="font-size: 0.9rem; color: var(--pico-muted-color);">0 / {{ batch_total }} consultants</p>
+    </div>
+
     <article id="cache-notice" style="max-width: 500px; margin: 1.5rem auto; text-align: left; border-left: 4px solid var(--pico-primary); padding: 1rem; display: none;">
-        <strong>First-time setup for this address</strong>
-        <p style="margin-bottom: 0;">We're building a distance cache for your departure point. This only happens once per address and can take up to <strong>10 minutes</strong> for large site databases. Future generations will be instant.</p>
+        <strong>Building distance cache</strong>
+        <p style="margin-bottom: 0;">The first batch run builds a distance cache for your departure point. This is a one-time cost and can take a few minutes. Subsequent runs will be much faster.</p>
     </article>
+
     <p id="elapsed" style="color: var(--pico-muted-color); font-size: 0.85rem;"></p>
 </div>
 
@@ -32,10 +39,13 @@
 <script>
 (function() {
     const jobId = "{{ job_id }}";
+    const batchTotal = {{ batch_total }};
     const statusText = document.getElementById("status-text");
     const statusDetail = document.getElementById("status-detail");
     const elapsedEl = document.getElementById("elapsed");
     const cacheNotice = document.getElementById("cache-notice");
+    const progressBar = document.getElementById("progress-bar");
+    const progressText = document.getElementById("progress-text");
     const startTime = Date.now();
     let cacheNoticeShown = false;
 
@@ -49,7 +59,7 @@
             elapsedEl.textContent = secs + "s elapsed";
         }
 
-        if (secs >= 10 && !cacheNoticeShown) {
+        if (secs >= 15 && !cacheNoticeShown) {
             cacheNotice.style.display = "block";
             cacheNoticeShown = true;
         }
@@ -57,14 +67,16 @@
 
     function poll() {
         updateElapsed();
-        fetch("/generate/single/status/" + jobId)
+        fetch("/generate/batch/status/" + jobId)
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.status === "done") {
                     statusText.textContent = "Done! Loading results...";
                     statusDetail.textContent = "";
+                    progressBar.value = batchTotal;
+                    progressText.textContent = batchTotal + " / " + batchTotal + " consultants";
                     cacheNotice.style.display = "none";
-                    window.location.href = "/generate/single/result/" + jobId;
+                    window.location.href = "/generate/batch/result/" + jobId;
                 } else if (data.status === "error") {
                     statusText.textContent = "An error occurred";
                     statusDetail.textContent = data.progress || "Unknown error";
@@ -73,6 +85,10 @@
                 } else {
                     if (data.progress) {
                         statusText.textContent = data.progress;
+                    }
+                    if (data.batch_done !== undefined) {
+                        progressBar.value = data.batch_done;
+                        progressText.textContent = data.batch_done + " / " + batchTotal + " consultants";
                     }
                     setTimeout(poll, 2000);
                 }
