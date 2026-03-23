@@ -177,14 +177,14 @@ class TripGenerator:
             "total_distance": round(total, 2),
         }
 
-    def _make_adjusted_trip(self, trip_date: datetime, entry: Dict,
-                            target_total: float) -> Dict:
-        """Create a trip with real outbound but adjusted return leg.
-        target_total is the exact total distance this trip must have.
+    def _make_adjusted_trip(self, trip_date: datetime, entry: Dict) -> Dict:
+        """Create a trip with real outbound and return padded by 5-15%.
+        Return leg is always >= real distance, never shrunk.
         """
         site = entry["site"]
         d_out = entry["d_out"]
-        adjusted_return = round(target_total - d_out, 2)
+        padding = random.uniform(0.05, 0.15)
+        adjusted_return = round(entry["d_back"] * (1 + padding), 2)
         return {
             "date": trip_date.strftime("%Y-%m-%d"),
             "start_address": self.office_address,
@@ -197,44 +197,26 @@ class TripGenerator:
             "total_distance": round(d_out + adjusted_return, 2),
         }
 
-    def _find_adjusted_site(self, remaining: float, max_deviation: float = 0.50) -> Dict:
-        """Find a site for the adjusted last trip.
-
-        The site's outbound must be < remaining, and the adjusted return
-        (remaining - outbound) should be within max_deviation of the real return.
-        Returns the best site entry, or None if none within threshold.
+    def _find_closing_site(self, remaining: float) -> Dict:
+        """Find the site whose real round-trip is closest to remaining.
+        The padded trip (return +5-15%) will slightly overshoot — that's fine.
+        Returns the best site entry, or None if no sites available.
         """
         best_site = None
-        best_dev = float("inf")
+        best_diff = float("inf")
 
-        shuffled = self._site_distances[:]
-        random.shuffle(shuffled)
-
-        for entry in shuffled:
-            d_out = entry["d_out"]
-            d_back_real = entry["d_back"]
-
-            if d_out >= remaining or d_out <= 0:
+        for entry in self._site_distances:
+            if entry["round_trip"] <= 0:
                 continue
-
-            adjusted_return = remaining - d_out
-            if adjusted_return <= 0:
-                continue
-
-            if d_back_real > 0:
-                dev = abs(adjusted_return - d_back_real) / d_back_real
-            else:
-                dev = float("inf")
-
-            if dev < best_dev:
+            # The actual trip will be d_out + d_back*(1.05~1.15)
+            # Use midpoint (1.10) for estimation
+            estimated_total = entry["d_out"] + entry["d_back"] * 1.10
+            diff = abs(estimated_total - remaining)
+            if diff < best_diff:
                 best_site = entry
-                best_dev = dev
+                best_diff = diff
 
-        if best_site is not None and best_dev <= max_deviation:
-            return best_site
-
-        # Over threshold — return None so caller keeps adding real trips
-        return None
+        return best_site
 
     def generate_trips(self, month: int, year: int, km_limit: float = None) -> List[Dict]:
         """Generate trips to exactly match target kilometers.
@@ -309,32 +291,30 @@ class TripGenerator:
                 step = len(workdays) / num_trips
                 selected_workdays = [workdays[int(i * step)] for i in range(num_trips)]
 
-            # --- Step 2: Add real trips, stop when remaining is closeable ---
+            # --- Step 2: Add real trips, last trip gets padded return (+5-15%) ---
             trips = []
             total_distance = 0.0
             ideal_per_trip = target / num_trips
 
             for i in range(len(selected_workdays)):
                 remaining = round(target - total_distance, 2)
+                is_last_trip = (i == len(selected_workdays) - 1) or (len(trips) >= num_trips - 1)
 
-                # Can we close the gap with one adjusted trip?
-                if len(trips) >= 1:
-                    candidate = self._find_adjusted_site(remaining, max_deviation=0.50)
-                    if candidate is not None:
-                        min_sensible = self._min_rt * 0.5
-                        max_sensible = self._max_rt * 1.5
-                        if (len(trips) >= num_trips - 1) or (min_sensible <= remaining <= max_sensible):
-                            last_trip = self._make_adjusted_trip(selected_workdays[i], candidate, remaining)
-                            trips.append(last_trip)
-                            total_distance += last_trip["total_distance"]
-                            break
+                # Last trip: use closest site with padded return
+                if is_last_trip and len(trips) >= 1:
+                    candidate = self._find_closing_site(remaining)
+                    if candidate:
+                        last_trip = self._make_adjusted_trip(selected_workdays[i], candidate)
+                        trips.append(last_trip)
+                        total_distance += last_trip["total_distance"]
+                    break
 
-                # Ensure we don't overshoot
+                # Ensure we don't overshoot — leave room for at least one more trip
                 max_allowed = remaining - self._min_rt * 0.5
                 if max_allowed <= 0:
-                    candidate = self._find_adjusted_site(remaining, max_deviation=1.0)
-                    if candidate and remaining > candidate["d_out"]:
-                        last_trip = self._make_adjusted_trip(selected_workdays[i], candidate, remaining)
+                    candidate = self._find_closing_site(remaining)
+                    if candidate:
+                        last_trip = self._make_adjusted_trip(selected_workdays[i], candidate)
                         trips.append(last_trip)
                         total_distance += last_trip["total_distance"]
                     break
@@ -351,9 +331,9 @@ class TripGenerator:
                         if e["round_trip"] <= max_allowed
                     ]
                 if not candidates:
-                    candidate = self._find_adjusted_site(remaining, max_deviation=1.0)
-                    if candidate and remaining > candidate["d_out"]:
-                        last_trip = self._make_adjusted_trip(selected_workdays[i], candidate, remaining)
+                    candidate = self._find_closing_site(remaining)
+                    if candidate:
+                        last_trip = self._make_adjusted_trip(selected_workdays[i], candidate)
                         trips.append(last_trip)
                         total_distance += last_trip["total_distance"]
                     break
@@ -387,39 +367,6 @@ class TripGenerator:
                 trip = self._make_trip(selected_workdays[i], site_entry)
                 trips.append(trip)
                 total_distance += trip["total_distance"]
-
-            # --- Step 3: If we used all workdays without closing, adjust last trip ---
-            remaining = round(target - total_distance, 2)
-            if remaining > 0 and abs(remaining) > 0.01:
-                if trips:
-                    last = trips[-1]
-                    last_site_entry = None
-                    for e in self._site_distances:
-                        if e["site"]["code"] == last["sites"][0]["code"]:
-                            last_site_entry = e
-                            break
-                    if last_site_entry:
-                        new_return = round(last["return_distance"] + remaining, 2)
-                        real_return = last_site_entry["d_back"]
-                        if real_return > 0:
-                            dev = abs(new_return - real_return) / real_return
-                        else:
-                            dev = float("inf")
-                        if dev <= 0.80 and new_return > 0:
-                            last["return_distance"] = new_return
-                            last["total_distance"] = round(
-                                sum(s["distance"] for s in last["sites"]) + last["return_distance"], 2
-                            )
-                            total_distance = sum(t["total_distance"] for t in trips)
-
-            # --- Step 4: Floating-point residual fix ---
-            residual = round(target - sum(t["total_distance"] for t in trips), 2)
-            if residual != 0.0 and trips:
-                last = trips[-1]
-                last["return_distance"] = round(last["return_distance"] + residual, 2)
-                last["total_distance"] = round(
-                    sum(s["distance"] for s in last["sites"]) + last["return_distance"], 2
-                )
 
             trip_list = sorted(trips, key=lambda x: x["date"])
 
